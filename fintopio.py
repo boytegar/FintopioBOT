@@ -269,7 +269,7 @@ def main():
                 if data_init is not None:
                     referralData = data_init.get('referralData',{})
                     balance = referralData.get('balance','0')
-                    print_(f"Balance : {round(balance)}")
+                    print_(f"Balance : {balance}")
                     total_point += float(balance)
                 isDailyRewardClaimed = data.get('isDailyRewardClaimed', True)
                 if isDailyRewardClaimed:
