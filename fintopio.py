@@ -40,9 +40,7 @@ def banner():
     print("""
         ========== FINTOPIO BOT ==========
         Join Group : t.me/sansxgroup
-        Github     : github.com/boytegar
-        
-        support me ? just pm here t.me/s4ns14       
+        Github     : github.com/boytegar 
     """)
 
 def print_(word):
@@ -68,12 +66,6 @@ def parse_query(query: str):
     parsed_query['user'] = user_data
     return parsed_query
 
-def getdata(token):
-    header['Authorization'] = f"Bearer {token}"
-    response = requests.get(api+"/referrals/data", headers=header)
-    data = response_data(response)
-    return data
-
 def get(id):
         tokens = json.loads(open("tokens.json").read())
         if str(id) not in tokens.keys():
@@ -84,6 +76,37 @@ def save(id, token):
         tokens = json.loads(open("tokens.json").read())
         tokens[str(id)] = token
         open("tokens.json", "w").write(json.dumps(tokens, indent=4))
+
+def make_request(self, method, url, headers, json=None, data=None):
+    retry_count = 0
+    while True:
+        time.sleep(2)
+        if method.upper() == "GET":
+            response = requests.get(url, headers=headers, json=json)
+        elif method.upper() == "POST":
+            response = requests.post(url, headers=headers, json=json, data=data)
+        elif method.upper() == "PUT":
+            response = requests.put(url, headers=headers, json=json, data=data)
+        else:
+            raise ValueError("Invalid method.")
+        
+        if response.status_code >= 500:
+            if retry_count >= 4:
+                self.print_(f"Status Code: {response.status_code} | {response.text}")
+                return None
+            retry_count += 1
+            return None
+        elif response.status_code >= 400:
+            self.print_(f"Status Code: {response.status_code} | {response.text}")
+            return None
+        elif response.status_code >= 200:
+            return response
+
+def getdata(token):
+    header['Authorization'] = f"Bearer {token}"
+    response = requests.get(api+"/referrals/data", headers=header)
+    data = response_data(response)
+    return data
 
 def checkin(token):
     try:
@@ -125,79 +148,6 @@ def claim_task(token, id):
     urlclaim = f'/hold/tasks/{id}/claim'
     response = requests.post(api+urlclaim, headers=header)
     return response_data(response)
-
-def main():
-    status_task = 'y' 
-    banner()
-    while True:
-        delay = random.randint(3600, 4100)
-        queries = load_credentials()
-        start_time = time.time()
-        for index, query in enumerate(queries, start=1):
-            user = getname(query)
-            token = get(user.get('id'))
-            print_(f"===== Account {index} | {user.get('username')} =====")
-            if token == None:
-                token = getlogin(query).get('token')
-                save(user.get('id'), token)
-                time.sleep(2)
-            data = getdata(token)
-            if data is not None:
-                isDailyRewardClaimed = data.get('isDailyRewardClaimed', True)
-                if isDailyRewardClaimed:
-                    print_(f"User {user.get('username')} has already claimed today's reward.")
-                else:
-                    data_checkin = checkin(token)
-                    if data_checkin is not None:
-                        print_('reward daily    : ' + str(data_checkin['dailyReward']))
-                        print_('total login day :' + str(data_checkin['totalDays']))
-                        print_('daily reward claimed!')
-            time.sleep(2)
-            getfarm(token)
-            time.sleep(2)
-            data_diamond = diamond(token)
-            if data_diamond is not None:
-                jsonsettings =  data_diamond['settings']
-                jsonstate =  data_diamond['state']
-                jsondiamondid =  data_diamond['diamondNumber']
-                jsontotalreward =  jsonsettings['totalReward']
-                if jsonstate == 'available':
-                    time.sleep(2)
-                    data_complete = complete(token, jsondiamondid)
-                    if data_complete is not None:
-                        print_('reward diamond   : ' + str(jsontotalreward))
-                elif jsonstate == 'unavailable':
-                    print_('asteroid unavailable yet!')
-                else:
-                    print_('asteroid crushed! waiting next round..')
-            print_("--- TASK ---")
-            if status_task == 'y':
-                data_task = gettask(token)
-                if data_task is not None:
-                    task_list = data_task.get('tasks', [])
-                    for item in task_list: 
-                        if item['status'] == 'available':
-                            id = item.get('id')
-                            slug = item.get('slug')                          
-                            print_(f'task {slug} started!')
-                            data_task = start_task(token, id)
-                            time.sleep(2)
-                            if data_task is not None:
-                                print_(f"task {slug} {data_task.get('status')}")
-                        elif item['status'] == 'verified':
-                            id = item.get('id')
-                            slug = item.get('slug') 
-                            rewardAmount = item.get('rewardAmount')
-                            data_task = claim_task(token, id)
-                            time.sleep(2)
-                            if data_task.get('status') == 'completed':
-                                print_(f"task {slug} done, reward {rewardAmount} points")
-
-        end_time = time.time()
-        total_time = delay - (end_time-start_time)
-        printdelay(total_time)
-        time.sleep(total_time)
-
 
 def printdelay(delay):
     now = datetime.now().isoformat(" ").split(".")[0]
@@ -277,8 +227,6 @@ def claimfarm(token):
     except:
         print_('[farming] failed to claim')
 
-
-
 def gettask(token):
     try:
         urltasks = api + "/hold/tasks"
@@ -290,7 +238,97 @@ def gettask(token):
     except Exception as e:
         print_('[gettask] failed, restarting')
 
+def init(token):
+    url = 'https://fintopio-tg.fintopio.com/api/hold/fast/init'
+    header['Authorization'] = f"Bearer {token}"
+    header['Webapp'] = "true"
+    response = requests.get(url, headers=header)
+    data = response_data(response)
+    return data
 
+def main():
+    status_task = 'y' 
+    banner()
+    while True:
+        delay = 1 * random.randint(3600, 3700)
+        queries = load_credentials()
+        start_time = time.time()
+        total_point = 0
+        sum = len(queries)
+        for index, query in enumerate(queries, start=1):
+            user = getname(query)
+            token = get(user.get('id'))
+            print_(f"===== Account {index} | {user.get('username')} =====")
+            if token == None:
+                token = getlogin(query).get('token')
+                save(user.get('id'), token)
+                time.sleep(2)
+            data = getdata(token)
+            if data is not None:
+                data_init = init(token)
+                if data_init is not None:
+                    referralData = data_init.get('referralData',{})
+                    balance = referralData.get('balance','0')
+                    print_(f"Balance : {round(balance)}")
+                    total_point += float(balance)
+                isDailyRewardClaimed = data.get('isDailyRewardClaimed', True)
+                if isDailyRewardClaimed:
+                    print_(f"User {user.get('username')} has already claimed today's reward.")
+                else:
+                    data_checkin = checkin(token)
+                    if data_checkin is not None:
+                        print_('reward daily    : ' + str(data_checkin['dailyReward']))
+                        print_('total login day :' + str(data_checkin['totalDays']))
+                        print_('daily reward claimed!')
+            time.sleep(2)
+            getfarm(token)
+            time.sleep(2)
+            data_diamond = diamond(token)
+            if data_diamond is not None:
+                jsonsettings =  data_diamond['settings']
+                jsonstate =  data_diamond['state']
+                jsondiamondid =  data_diamond['diamondNumber']
+                jsontotalreward =  jsonsettings['totalReward']
+                if jsonstate == 'available':
+                    time.sleep(2)
+                    data_complete = complete(token, jsondiamondid)
+                    if data_complete is not None:
+                        print_('reward diamond   : ' + str(jsontotalreward))
+                elif jsonstate == 'unavailable':
+                    print_('asteroid unavailable yet!')
+                else:
+                    print_('asteroid crushed! waiting next round..')
+            print_("--- TASK ---")
+            if status_task == 'y':
+                data_task = gettask(token)
+                if data_task is not None:
+                    task_list = data_task.get('tasks', [])
+                    for item in task_list: 
+                        if item['status'] == 'available':
+                            id = item.get('id')
+                            slug = item.get('slug')                          
+                            print_(f'task {slug} started!')
+                            data_task = start_task(token, id)
+                            time.sleep(2)
+                            if data_task is not None:
+                                print_(f"task {slug} {data_task.get('status')}")
+                        elif item['status'] == 'verified':
+                            id = item.get('id')
+                            slug = item.get('slug') 
+                            rewardAmount = item.get('rewardAmount')
+                            data_task = claim_task(token, id)
+                            time.sleep(2)
+                            if data_task is not None:
+                                if data_task.get('status') == 'completed':
+                                    print_(f"task {slug} done, reward {rewardAmount} points")
+        print_("=============================================")
+        print_(f"Total user : {sum} | Total Point : {round(total_point)} ")
+        print_("=============================================")
+        end_time = time.time()
+        total_time = delay - (end_time-start_time)
+        if total_time >= 0:
+            printdelay(total_time)
+            time.sleep(total_time)
 
 if __name__ == "__main__":
     try:
