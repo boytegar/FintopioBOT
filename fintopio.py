@@ -60,11 +60,14 @@ def response_data(response):
             return None
 
 def parse_query(query: str):
-    parsed_query = parse_qs(query)
-    parsed_query = {k: v[0] for k, v in parsed_query.items()}
-    user_data = json.loads(unquote(parsed_query['user']))
-    parsed_query['user'] = user_data
-    return parsed_query
+    try:
+        parsed_query = parse_qs(query)
+        parsed_query = {k: v[0] for k, v in parsed_query.items()}
+        user_data = json.loads(unquote(parsed_query['user']))
+        parsed_query['user'] = user_data
+        return parsed_query
+    except Exception as e:
+        print_(f"Error {e}")
 
 def get(id):
         tokens = json.loads(open("tokens.json").read())
@@ -256,7 +259,7 @@ def main():
         total_point = 0
         sum = len(queries)
         for index, query in enumerate(queries, start=1):
-            user = getname(query)
+            user = parse_query(query).get('user')
             token = get(user.get('id'))
             print_(f"===== Account {index} | {user.get('username')} =====")
             if token == None:
