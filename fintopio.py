@@ -230,6 +230,20 @@ def claimfarm(token):
     except:
         print_('[farming] failed to claim')
 
+def play_game(token, score):
+    try:
+        url = api + '/hold/space-tappers/add-new-result'
+        payload = {"score": score}
+        header['Authorization'] = f"Bearer {token}"
+        header['Webapp'] = "true"
+        response = requests.post(url, headers=header, json=payload)
+        if response.status_code == 201:
+            jsons = response.json()
+            actualReward = jsons.get('actualReward',0)
+            print_(f"Play game done, reward : {actualReward*10}")
+    except:
+        print_('[farming] failed to playing game')
+
 def gettask(token):
     try:
         urltasks = api + "/hold/tasks"
@@ -250,7 +264,11 @@ def init(token):
     return data
 
 def main():
-    status_task = 'y' 
+    status_task = input('clear task y/n ? ').strip().lower()
+    selector_game = input('auto play game y/n ? ').strip().lower()
+    if selector_game == 'y': 
+        selector_score = input('set max score (max= 1000) y/n ? ').strip().lower()
+        selector_range = input('max play game in account (ex:5) ? ')
     banner()
     while True:
         delay = 1 * random.randint(3600, 3700)
@@ -324,6 +342,21 @@ def main():
                             if data_task is not None:
                                 if data_task.get('status') == 'completed':
                                     print_(f"task {slug} done, reward {rewardAmount} points")
+            if selector_game =='y':
+                print_("Set Play Game")
+                loops = int(selector_range)
+
+                if selector_score == 'y':
+                    score = 100
+                else:
+                    score = random.randint(30, 60)
+
+                for i in range(loops):
+                    print_(f"Playing Game {i+1}")
+                    times = random.randint(30,35)
+                    time.sleep(times)
+                    play_game(token, score)
+
         print_("=============================================")
         print_(f"Total user : {sum} | Total Point : {round(total_point)} ")
         print_("=============================================")
